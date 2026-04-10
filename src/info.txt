@@ -1,0 +1,2 @@
+mailtrap.io for mailing functionality
+loadly.io for app build and is alternate of diawi and is free
