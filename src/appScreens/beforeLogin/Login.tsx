@@ -9,15 +9,16 @@ import {
   Keyboard,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { COLORS } from '../../constants/Theme';
 import { Button, TextInput } from 'react-native-paper';
-import { authService } from '../../services/apiService';
 import { storageService } from '../../services/storageService';
+import { Toaster } from '../../components/toast';
+import { isValidEmail } from '../../utils/validators';
 import { useDispatch } from 'react-redux';
-import { loginSuccess } from '../../reduxStore/slices/authSlice';
-// import { Toaster } from '../../components/toast';
-// import { isValidEmail } from '../../utils/validators';
+import { useLoginMutation } from '../../reduxStore/slices/apiSlice';
+import { setUserCredentials } from '../../reduxStore/slices/authSlice';
 
 interface FormErrors {
   email?: string;
@@ -29,7 +30,7 @@ export default function LoginScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [secureText, setSecureText] = useState(true);
   const [errors, setError] = useState<FormErrors>({});
-  const [loading, setLoading] = useState(false);
+  const [login, { data, isLoading, error }] = useLoginMutation();
   const dispatch = useDispatch();
 
   const validateForm = () => {
@@ -37,46 +38,53 @@ export default function LoginScreen({ navigation }: any) {
 
     if (!email) err.email = 'Email is required.';
     if (!password) err.password = 'Password is required.';
-    // if (email && !isValidEmail(email)) {
-    //   err.email = 'Email is not valid';
-    // }
+    if (email && !isValidEmail(email)) {
+      err.email = 'Email is not valid';
+    }
 
     setError(err);
 
     return Object.keys(err).length === 0;
   };
 
-  // const handleFormSubmit = async () => {
-  //   console.log('validateform()', validateForm());
-  //   if (validateForm()) {
-  //     try {
-  //       setLoading(true);
-  //       await new Promise(resolve => setTimeout(() => resolve(null), 2000));
-  //       const user = await authService.login(email, password);
-  //       const res = storageService.setCredentials(
-  //         user.username,
-  //         user.accessToken,
-  //         'loggedUser',
-  //       );
-  //       console.log('res=>', res);
-  //       // dispatch(loginSuccess(user));
-  //       setEmail('');
-  //       setPassword('');
-  //       setError({});
-  //     } catch (e: any) {
-  //       // e.message == 'Network Error' ||
-  //       // e.message == 'timeout of 5000ms exceeded'
-  //       //   ? Toaster.toastError(e.message)
-  //       //   : Toaster.toastError(e?.response?.data?.message);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   } else {
-  //     console.log(errors);
-  //     console.log(email);
-  //     console.log(password);
-  //   }
-  // };
+  const handleFormSubmit = async () => {
+    if (validateForm()) {
+      await login({ email, password });
+    } else {
+      console.log(errors);
+    }
+  };
+
+  React.useEffect(() => {
+    if (data) {
+      console.log('Login successful:', data);
+      setEmail('');
+      setPassword('');
+      setError({});
+      const user = (data as any).data;
+      console.log('User:', user);
+      storageService.setCredentials(
+        JSON.stringify(user),
+        (data as any).data?.token,
+        'edurentify_user',
+      );
+      dispatch(
+        setUserCredentials({ user: data, token: (data as any).data?.token }),
+      );
+      Toaster.toastSuccess((data as any)?.message);
+    }
+  }, [data]);
+
+  React.useEffect(() => {
+    if (error) {
+      console.log('Login error:', error);
+      Toaster.toastError(
+        (error as any).data?.message
+          ? (error as any).data?.message
+          : 'Network disconnected!',
+      );
+    }
+  }, [error]);
 
   return (
     <KeyboardAvoidingView
@@ -101,6 +109,7 @@ export default function LoginScreen({ navigation }: any) {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            disabled={isLoading}
           />
           {errors.email ? (
             <View style={styles.errContainer}>
@@ -121,6 +130,7 @@ export default function LoginScreen({ navigation }: any) {
                 onPress={() => setSecureText(!secureText)}
               />
             }
+            disabled={isLoading}
           />
           {errors.password ? (
             <View style={styles.errContainer}>
@@ -137,24 +147,50 @@ export default function LoginScreen({ navigation }: any) {
             </Text>
           </TouchableOpacity>
 
-          <Button
-            mode="contained"
-            // onPress={() => handleFormSubmit()}
-            onPress={() => navigation.navigate('Home')}
-            style={styles.button}
-            contentStyle={{
-              height: 50,
-              width: '100%',
-              flexDirection: 'row',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-            labelStyle={styles.buttonText}
-            loading={loading}
-            disabled={loading}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </Button>
+          {isLoading ? (
+            <TouchableOpacity
+              style={[
+                styles.button,
+                { backgroundColor: COLORS.primary, opacity: 0.7 },
+              ]}
+              disabled={true}
+            >
+              <View
+                style={{
+                  height: 50,
+                  width: '100%',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <ActivityIndicator
+                  size="small"
+                  color="#fff"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={[styles.buttonText, { color: '#fff' }]}>
+                  Logging in...
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <Button
+              mode="contained"
+              onPress={() => handleFormSubmit()}
+              style={styles.button}
+              contentStyle={{
+                height: 50,
+                width: '100%',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              labelStyle={styles.buttonText}
+            >
+              Login
+            </Button>
+          )}
 
           <View style={styles.signupInfoContainer}>
             <Text style={styles.memberText}>New member?</Text>

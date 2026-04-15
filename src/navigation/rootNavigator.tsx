@@ -1,28 +1,44 @@
+import { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import AppNavigator from './AppNavigator';
 import AuthNavigator from './AuthNavigator';
 import { storageService } from '../services/storageService';
-import { isAuthChecked, loginSuccess } from '../reduxStore/slices/authSlice';
-import { useEffect } from 'react';
+import { setUserCredentials } from '../reduxStore/slices/authSlice';
 
 export default function RootNavigator() {
-  const { isLoggedin, isAuthLoading } = useSelector((state: any) => state.auth);
-
+  const token = useSelector((state: any) => state.auth.token);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const dispatch = useDispatch();
 
   useEffect(() => {
     const bootstrapAuth = async () => {
-      const user = await storageService.getCredentials('loggedUser');
-      if (user) {
-        dispatch(loginSuccess(user));
-      } else {
-        dispatch(isAuthChecked());
+      try {
+        const userCreds = await storageService.getCredentials(
+          'edurentify_user',
+        );
+        console.log('Retrieved userCreds:', userCreds);
+
+        if (userCreds) {
+          const user = JSON.parse((userCreds as any).username);
+          const token = (userCreds as any).password;
+          dispatch(setUserCredentials({ user: user, token: token }));
+        } else {
+          console.log('No user credentials found');
+          dispatch(setUserCredentials({ user: null, token: null }));
+        }
+      } catch (error) {
+        console.error('Auth bootstrap error:', error);
+        dispatch(setUserCredentials({ user: null, token: null }));
+      } finally {
+        setIsAuthLoading(false);
       }
     };
 
     bootstrapAuth();
   }, []);
-  console.log('isAuthLoading', isAuthLoading);
+
   if (isAuthLoading) return null;
-  return isLoggedin ? <AppNavigator /> : <AuthNavigator />;
+
+  console.log('Final token state:', token);
+  return token ? <AppNavigator /> : <AuthNavigator />;
 }

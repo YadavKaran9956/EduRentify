@@ -5,7 +5,7 @@ import { Provider } from 'react-redux';
 import { store } from './reduxStore/store';
 import { enableScreens } from 'react-native-screens';
 import { PaperProvider } from 'react-native-paper';
-// import ToastManager from 'toastify-react-native';
+import Toast from 'react-native-toast-message';
 enableScreens();
 
 export default function App() {
@@ -13,10 +13,10 @@ export default function App() {
     <Provider store={store}>
       <PaperProvider>
         <SafeAreaProvider>
-          {/* <ToastManager /> */}
           <NavigationContainer>
             <RootNavigator />
           </NavigationContainer>
+          <Toast />
         </SafeAreaProvider>
       </PaperProvider>
     </Provider>

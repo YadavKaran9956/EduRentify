@@ -32,9 +32,6 @@ export default function AuthNavigator() {
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="VerifyOtp" component={VerifyOtpScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-      <Stack.Screen name="Home" component={Home} />
-      <Stack.Screen name="ItemDetails" component={ItemDetails} />
-      <Stack.Screen name="AddItems" component={AddItems} />
     </Stack.Navigator>
   );
 }

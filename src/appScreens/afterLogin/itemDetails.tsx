@@ -8,7 +8,16 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
-import { Text, Avatar, Divider, Surface, Appbar } from 'react-native-paper';
+import {
+  Text,
+  Avatar,
+  Divider,
+  Surface,
+  Appbar,
+  Button,
+} from 'react-native-paper';
+import { COLORS } from '../../constants/Theme';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -46,6 +55,10 @@ export default function ItemDetails({ navigation }: any) {
     if (roundIndex !== activeSlide) {
       setActiveSlide(roundIndex);
     }
+  };
+
+  const handleBookItem = () => {
+    navigation.navigate('BookingConfirmation');
   };
 
   const renderPagination = () => (
@@ -170,6 +183,18 @@ export default function ItemDetails({ navigation }: any) {
           </Surface>
         </View>
       </ScrollView>
+
+      {/* Fixed Book Item Button */}
+      <View style={styles.bookButtonContainer}>
+        <Button
+          mode="contained"
+          onPress={handleBookItem}
+          style={styles.bookButton}
+          contentStyle={styles.bookButtonContent}
+        >
+          Book Item
+        </Button>
+      </View>
     </View>
   );
 }
@@ -242,6 +267,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    paddingBottom: 100, // Add padding to prevent overlap with fixed button
   },
   cardSection: {
     backgroundColor: '#fff',
@@ -302,5 +328,21 @@ const styles = StyleSheet.create({
   ownerStatus: {
     color: '#4CAF50',
     marginTop: 2,
+  },
+  bookButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  bookButton: {
+    backgroundColor: COLORS.primary,
+  },
+  bookButtonContent: {
+    paddingVertical: 14,
   },
 });

@@ -6,10 +6,24 @@ import {
   Dimensions,
   Image,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
-import { Searchbar, Card, Text, Menu, Button, FAB } from 'react-native-paper';
+import {
+  Searchbar,
+  Card,
+  Text,
+  Menu,
+  Button,
+  FAB,
+  IconButton,
+} from 'react-native-paper';
 import { COLORS } from '../../constants/Theme';
 import { useNavigation } from '@react-navigation/native';
+import { storageService } from '../../services/storageService';
+import { logoutUser } from '../../reduxStore/slices/authSlice';
+import { useDispatch } from 'react-redux';
+import { AlertComp } from '../../components/alert';
+import { useLogoutMutation } from '../../reduxStore/slices/apiSlice';
 
 const { width } = Dimensions.get('window');
 
@@ -53,9 +67,58 @@ export default function Home({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState('');
   const [visible, setVisible] = useState(false);
   const [filter, setFilter] = useState('Hourly');
+  const [fabMenuOpen, setFabMenuOpen] = useState(false);
+  const [fabAnimation] = useState(new Animated.Value(0));
+  const dispatch = useDispatch();
+
+  const [logout] = useLogoutMutation();
 
   const openMenu = () => setVisible(true);
   const closeMenu = () => setVisible(false);
+
+  const toggleFabMenu = () => {
+    if (fabMenuOpen) {
+      Animated.timing(fabAnimation, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start(() => setFabMenuOpen(false));
+    } else {
+      setFabMenuOpen(true);
+      Animated.timing(fabAnimation, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  };
+
+  const handleMenuAction = (action: string) => {
+    switch (action) {
+      case 'profile':
+        navigation.navigate('Profile');
+        break;
+      case 'contact':
+        navigation.navigate('ContactUs');
+        break;
+      case 'faqs':
+        navigation.navigate('FAQs');
+        break;
+      case 'about':
+        navigation.navigate('AboutUs');
+        break;
+      case 'logout':
+        AlertComp.logoutAlert({
+          onConfirm: async () => {
+            await logout(null);
+            storageService.deleteCredentials('edurentify_user');
+            dispatch(logoutUser());
+          },
+        });
+        break;
+    }
+    toggleFabMenu();
+  };
 
   const handleFilterSelect = (selectedFilter: string) => {
     setFilter(selectedFilter);
@@ -98,11 +161,6 @@ export default function Home({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.fixedHeader}>
-        <Image
-          source={require('../../assets/icon.png')}
-          style={styles.heroImage}
-          resizeMode="cover"
-        />
         <View style={styles.stickySearchContainer}>
           <Searchbar
             placeholder="Search items.."
@@ -151,22 +209,95 @@ export default function Home({ navigation }: any) {
         ListHeaderComponent={
           <View style={styles.sectionHeader}>
             <Text variant="titleLarge" style={styles.sectionTitle}>
-              Featured Items
+              EduRentify Featured Items
             </Text>
           </View>
         }
         showsVerticalScrollIndicator={false}
       />
-      <View style={styles.addButtonContainer}>
+      <View style={styles.bottomBar}>
         <Button
-          mode="contained"
+          mode="text"
           onPress={handleAddItem}
-          style={styles.addButton}
+          style={styles.addButtonLeft}
           contentStyle={styles.addButtonContent}
           icon="plus"
         >
           Add Item
         </Button>
+        <Button
+          mode="text"
+          onPress={toggleFabMenu}
+          style={styles.moreButton}
+          contentStyle={styles.addButtonContent}
+          icon={fabMenuOpen ? 'close' : 'menu'}
+        >
+          More
+        </Button>
+        {fabMenuOpen && (
+          <View style={styles.moreMenu}>
+            <TouchableOpacity
+              style={styles.moreMenuItem}
+              onPress={() => handleMenuAction('profile')}
+            >
+              <IconButton
+                icon="account"
+                iconColor="#fff"
+                size={20}
+                style={styles.menuIcon}
+              />
+              <Text style={styles.moreMenuText}>My Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.moreMenuItem}
+              onPress={() => handleMenuAction('contact')}
+            >
+              <IconButton
+                icon="phone"
+                iconColor="#fff"
+                size={20}
+                style={styles.menuIcon}
+              />
+              <Text style={styles.moreMenuText}>Contact Us</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.moreMenuItem}
+              onPress={() => handleMenuAction('faqs')}
+            >
+              <IconButton
+                icon="help-circle"
+                iconColor="#fff"
+                size={20}
+                style={styles.menuIcon}
+              />
+              <Text style={styles.moreMenuText}>FAQs</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.moreMenuItem}
+              onPress={() => handleMenuAction('about')}
+            >
+              <IconButton
+                icon="information"
+                iconColor="#fff"
+                size={20}
+                style={styles.menuIcon}
+              />
+              <Text style={styles.moreMenuText}>About Us</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.moreMenuItem}
+              onPress={() => handleMenuAction('logout')}
+            >
+              <IconButton
+                icon="logout"
+                iconColor="#fff"
+                size={20}
+                style={styles.menuIcon}
+              />
+              <Text style={styles.moreMenuText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -186,16 +317,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   listContent: {
-    paddingTop: 220, // heroImage (120) + stickySearchContainer (approx 80) + padding
-    paddingBottom: 20,
-  },
-  heroImage: {
-    width: width,
-    height: 120,
-    resizeMode: 'center',
-    alignSelf: 'center',
-    backgroundColor: '#f5f5f5',
-    marginTop: 10,
+    paddingTop: 100, // stickySearchContainer (approx 80) + padding
+    paddingBottom: 80, // Reduced to prevent excessive footer space
   },
   stickySearchContainer: {
     width: width,
@@ -278,20 +401,49 @@ const styles = StyleSheet.create({
     color: '#666',
     flex: 1,
   },
-  addButtonContainer: {
+  bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    padding: 16,
+    padding: 2,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  addButton: {
-    backgroundColor: COLORS.primary,
+  addButtonLeft: {
+    flex: 1,
   },
   addButtonContent: {
-    paddingVertical: 12,
+    paddingVertical: 0,
+  },
+  moreButton: {
+    flex: 1,
+  },
+  moreMenu: {
+    position: 'absolute',
+    bottom: 90,
+    right: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    borderRadius: 8,
+    padding: 8,
+    minWidth: 150,
+  },
+  moreMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  moreMenuText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 16,
+  },
+  menuIcon: {
+    margin: 0,
+    padding: 0,
   },
 });

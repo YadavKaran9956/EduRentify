@@ -1,51 +1,22 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import HomeScreen from '../appScreens/afterLogin/Home';
-import { IconButton } from 'react-native-paper';
-import { AlertComp } from '../components/alert';
-import { useDispatch } from 'react-redux';
-import { logoutSuccess } from '../reduxStore/slices/authSlice';
-import { storageService } from '../services/storageService';
+import AddItems from '../appScreens/afterLogin/addItems';
+import Home from '../appScreens/afterLogin/Home';
+import ItemDetails from '../appScreens/afterLogin/itemDetails';
 
 export type AppStackParamList = {
   Home: undefined;
-  PokemonDetails: { url: string };
+  ItemDetails: undefined;
+  AddItems: undefined;
 };
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
 export default function AppNavigator() {
-  const dispatch = useDispatch();
-
-  const handleLogout = () => {
-    console.log('executed');
-    storageService.deleteCredentials('loggedUser');
-    dispatch(logoutSuccess());
-  };
-
   return (
     <Stack.Navigator>
-      <Stack.Screen
-        name="Home"
-        component={HomeScreen}
-        options={() => ({
-          title: 'Pokemons',
-          headerBackButtonDisplayMode: 'minimal',
-          headerRight: () => (
-            <IconButton
-              icon="logout"
-              onPress={() => AlertComp.logoutAlert({ onConfirm: handleLogout })}
-            />
-          ),
-        })}
-      />
-      {/* <Stack.Screen
-        name="PokemonDetails"
-        component={PokemonDetails}
-        options={{
-          title: 'Pokemon Details',
-          headerBackButtonDisplayMode: 'minimal',
-        }}
-      /> */}
+      <Stack.Screen name="Home" component={Home} />
+      <Stack.Screen name="ItemDetails" component={ItemDetails} />
+      <Stack.Screen name="AddItems" component={AddItems} />
     </Stack.Navigator>
   );
 }

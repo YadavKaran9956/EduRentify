@@ -9,37 +9,31 @@ import {
   Keyboard,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { COLORS } from '../../constants/Theme';
 import { Button, TextInput } from 'react-native-paper';
-import { authService } from '../../services/apiService';
-import { storageService } from '../../services/storageService';
-import { useDispatch } from 'react-redux';
-import { loginSuccess } from '../../reduxStore/slices/authSlice';
-// import { Toaster } from '../../components/toast';
-// import { isValidEmail } from '../../utils/validators';
+import { Toaster } from '../../components/toast';
+import { isValidEmail } from '../../utils/validators';
+import { useForgotPasswordMutation } from '../../reduxStore/slices/apiSlice';
 
 interface FormErrors {
   email?: string;
-  password?: string;
 }
 
 export default function ForgotPasswordScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [secureText, setSecureText] = useState(true);
   const [errors, setError] = useState<FormErrors>({});
-  const [loading, setLoading] = useState(false);
-  const dispatch = useDispatch();
+  const [forgotPassword, { data, isLoading, error }] =
+    useForgotPasswordMutation();
 
   const validateForm = () => {
     let err: FormErrors = {};
 
     if (!email) err.email = 'Email is required.';
-    if (!password) err.password = 'Password is required.';
-    // if (email && !isValidEmail(email)) {
-    //   err.email = 'Email is not valid';
-    // }
+    if (email && !isValidEmail(email)) {
+      err.email = 'Email is not valid';
+    }
 
     setError(err);
 
@@ -47,36 +41,33 @@ export default function ForgotPasswordScreen({ navigation }: any) {
   };
 
   const handleFormSubmit = async () => {
-    console.log('validateform()', validateForm());
     if (validateForm()) {
-      try {
-        setLoading(true);
-        await new Promise(resolve => setTimeout(() => resolve(null), 2000));
-        const user = await authService.login(email, password);
-        const res = storageService.setCredentials(
-          user.username,
-          user.accessToken,
-          'loggedUser',
-        );
-        console.log('res=>', res);
-        // dispatch(loginSuccess(user));
-        setEmail('');
-        setPassword('');
-        setError({});
-      } catch (e: any) {
-        // e.message == 'Network Error' ||
-        // e.message == 'timeout of 5000ms exceeded'
-        //   ? Toaster.toastError(e.message)
-        //   : Toaster.toastError(e?.response?.data?.message);
-      } finally {
-        setLoading(false);
-      }
+      await forgotPassword({ email });
     } else {
       console.log(errors);
-      console.log(email);
-      console.log(password);
     }
   };
+
+  React.useEffect(() => {
+    if (data) {
+      console.log('Forgot password successful:', data);
+      setEmail('');
+      setError({});
+      Toaster.toastSuccess((data as any)?.message);
+      navigation.navigate('VerifyOtp', { email });
+    }
+  }, [data]);
+
+  React.useEffect(() => {
+    if (error) {
+      console.log('Forgot password error:', error);
+      Toaster.toastError(
+        (error as any).data?.message
+          ? (error as any).data?.message
+          : 'Network disconnected!',
+      );
+    }
+  }, [error]);
 
   return (
     <KeyboardAvoidingView
@@ -99,12 +90,13 @@ export default function ForgotPasswordScreen({ navigation }: any) {
 
           <TextInput
             style={styles.input}
-            label="Email"
+            label="Email*"
             mode="outlined"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            disabled={isLoading}
           />
           {errors.email ? (
             <View style={styles.errContainer}>
@@ -112,24 +104,50 @@ export default function ForgotPasswordScreen({ navigation }: any) {
             </View>
           ) : null}
 
-          <Button
-            mode="contained"
-            // onPress={() => handleSendOtp()}
-            onPress={() => navigation.navigate('VerifyOtp')}
-            style={styles.button}
-            contentStyle={{
-              height: 50,
-              width: '100%',
-              flexDirection: 'row',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-            labelStyle={styles.buttonText}
-            loading={loading}
-            disabled={loading}
-          >
-            {loading ? 'Sending OTP...' : 'Send OTP'}
-          </Button>
+          {isLoading ? (
+            <TouchableOpacity
+              style={[
+                styles.button,
+                { backgroundColor: COLORS.primary, opacity: 0.7 },
+              ]}
+              disabled={true}
+            >
+              <View
+                style={{
+                  height: 50,
+                  width: '100%',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <ActivityIndicator
+                  size="small"
+                  color="#fff"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={[styles.buttonText, { color: '#fff' }]}>
+                  Sending email...
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <Button
+              mode="contained"
+              onPress={() => handleFormSubmit()}
+              style={styles.button}
+              contentStyle={{
+                height: 50,
+                width: '100%',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              labelStyle={styles.buttonText}
+            >
+              Send Email
+            </Button>
+          )}
 
           <View style={styles.loginInfoContainer}>
             <Text style={styles.memberText}>Remembered your password?</Text>

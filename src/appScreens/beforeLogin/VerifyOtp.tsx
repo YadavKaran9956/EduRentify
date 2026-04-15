@@ -10,45 +10,92 @@ import {
   Platform,
   Image,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { Button } from 'react-native-paper';
 import { COLORS } from '../../constants/Theme';
+import {
+  useForgotPasswordMutation,
+  useVerifyOtpMutation,
+} from '../../reduxStore/slices/apiSlice';
+import { Toaster } from '../../components/toast';
 
 const OTP_LENGTH = 6;
 
-export default function VerifyOtpScreen({ navigation }: any) {
+export default function VerifyOtpScreen({ navigation, route }: any) {
+  const { email } = route.params;
+  const [verifyOtp, { data, isLoading, error }] = useVerifyOtpMutation();
+  const [
+    forgotPassword,
+    {
+      data: forgotPasswordData,
+      isLoading: forgotPasswordLoading,
+      error: forgotPasswordError,
+    },
+  ] = useForgotPasswordMutation();
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''));
-  const [loading, setLoading] = useState(false);
-  const inputRefs = useRef([]);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  //   const handleChange = (value, index) => {
-  //     if (!/^\d*$/.test(value)) return; // allow digits only
+  const handleChange = (value: any, index: number) => {
+    if (!/^\d*$/.test(value)) return; // allow digits only
 
-  //     const newOtp = [...otp];
-  //     newOtp[index] = value;
-  //     setOtp(newOtp);
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
 
-  //     // Move to next field automatically
-  //     if (value && index < OTP_LENGTH - 1) {
-  //       inputRefs.current[index + 1].focus();
-  //     }
-  //   };
+    if (value && index < OTP_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
 
-  //   const handleKeyPress = ({ nativeEvent }, index) => {
-  //     // Move to previous field on backspace if current field is empty
-  //     if (nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-  //       inputRefs.current[index - 1].focus();
-  //     }
-  //   };
+  const handleVerifyOtp = async () => {
+    const enteredOtp = otp.join('');
+    if (enteredOtp.length < OTP_LENGTH) {
+      Toaster.toastError('Please enter a 6 digit OTP');
+      return;
+    } else {
+      await verifyOtp({ email, otp: enteredOtp });
+    }
+  };
 
-  //   const handleVerifyOtp = () => {
-  //     const enteredOtp = otp.join('');
-  //     if (enteredOtp.length < OTP_LENGTH) {
-  //       // handle incomplete OTP
-  //       return;
-  //     }
-  //     // your verification logic here
-  //   };
+  const handleKeyPress = ({ nativeEvent }: any, index: number) => {
+    if (nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const resendOtp = async () => {
+    await forgotPassword({ email });
+    Toaster.toastSuccess('OTP resent successfully');
+  };
+
+  React.useEffect(() => {
+    if (data) {
+      console.log('OTP verified successfully:', data);
+      navigation.navigate('ResetPassword', { email });
+    }
+    if (error) {
+      console.log('OTP verification failed:', error);
+      Toaster.toastError(
+        (error as any)?.data?.message ||
+          'OTP verification failed. Please try again.',
+      );
+    }
+  }, [data, error]);
+
+  React.useEffect(() => {
+    if (forgotPasswordData) {
+      console.log('OTP resent successfully:', forgotPasswordData);
+      Toaster.toastSuccess('OTP resent successfully');
+    }
+    if (forgotPasswordError) {
+      console.log('OTP resend failed:', forgotPasswordError);
+      Toaster.toastError(
+        (forgotPasswordError as any)?.data?.message ||
+          'OTP resend failed. Please try again.',
+      );
+    }
+  }, [forgotPasswordData, forgotPasswordError]);
 
   return (
     <KeyboardAvoidingView
@@ -68,48 +115,76 @@ export default function VerifyOtpScreen({ navigation }: any) {
             Enter the 6-digit code sent to your registered email address.
           </Text>
 
-          {/* OTP Input Fields */}
           <View style={styles.otpContainer}>
             {otp.map((digit, index) => (
               <TextInput
                 key={index}
-                // ref={ref => (inputRefs.current[index] = ref)}
+                ref={ref => {
+                  inputRefs.current[index] = ref;
+                }}
                 style={[styles.otpInput, digit ? styles.otpInputFilled : null]}
                 value={digit}
-                // onChangeText={value => handleChange(value, index)}
-                // onKeyPress={e => handleKeyPress(e, index)}
+                onChangeText={value => handleChange(value, index)}
+                onKeyPress={e => handleKeyPress(e, index)}
                 keyboardType="numeric"
                 maxLength={1}
                 textContentType="oneTimeCode"
                 selectTextOnFocus
+                editable={!isLoading}
               />
             ))}
           </View>
 
-          <Button
-            mode="contained"
-            // onPress={handleVerifyOtp}
-            onPress={() => navigation.navigate('ResetPassword')}
-            style={styles.button}
-            contentStyle={{
-              height: 50,
-              width: '100%',
-              flexDirection: 'row',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-            labelStyle={styles.buttonText}
-            loading={loading}
-            disabled={loading}
-          >
-            {loading ? 'Verifying...' : 'Verify OTP'}
-          </Button>
+          {isLoading ? (
+            <TouchableOpacity
+              style={[
+                styles.button,
+                { backgroundColor: COLORS.primary, opacity: 0.7 },
+              ]}
+              disabled={true}
+            >
+              <View
+                style={{
+                  height: 50,
+                  width: '100%',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <ActivityIndicator
+                  size="small"
+                  color="#fff"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={[styles.buttonText, { color: '#fff' }]}>
+                  Verifying...
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <Button
+              mode="contained"
+              onPress={() => handleVerifyOtp()}
+              style={styles.button}
+              contentStyle={{
+                height: 50,
+                width: '100%',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              labelStyle={styles.buttonText}
+            >
+              Verify
+            </Button>
+          )}
 
           <View style={styles.resendContainer}>
             <Text style={styles.resendText}>Didn't receive the code?</Text>
             <TouchableOpacity
               onPress={() => {
-                /* resend OTP logic */
+                resendOtp();
               }}
             >
               <Text style={styles.resendLink}> Resend OTP</Text>
