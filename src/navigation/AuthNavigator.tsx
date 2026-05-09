@@ -1,12 +1,9 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import LoginScreen from '../appScreens/beforeLogin/Login';
-import SignupScreen from '../appScreens/beforeLogin/Signup';
-import ForgotPasswordScreen from '../appScreens/beforeLogin/ForgotPassword';
-import VerifyOtpScreen from '../appScreens/beforeLogin/VerifyOtp';
-import ResetPasswordScreen from '../appScreens/beforeLogin/ResetPassword';
-import Home from '../appScreens/afterLogin/Home';
-import ItemDetails from '../appScreens/afterLogin/itemDetails';
-import AddItems from '../appScreens/afterLogin/addItems';
+import LoginScreen from '../appScreens/authScreens/Login';
+import SignupScreen from '../appScreens/authScreens/Signup';
+import ForgotPasswordScreen from '../appScreens/authScreens/ForgotPassword';
+import VerifyOtpScreen from '../appScreens/authScreens/VerifyOtp';
+import ResetPasswordScreen from '../appScreens/authScreens/ResetPassword';
 
 type AuthStackParamList = {
   Login: undefined;

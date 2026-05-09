@@ -21,6 +21,7 @@ import {
 import { Toaster } from '../../components/toast';
 
 const OTP_LENGTH = 6;
+let OTP = '';
 
 export default function VerifyOtpScreen({ navigation, route }: any) {
   const { email } = route.params;
@@ -50,6 +51,7 @@ export default function VerifyOtpScreen({ navigation, route }: any) {
 
   const handleVerifyOtp = async () => {
     const enteredOtp = otp.join('');
+    OTP = enteredOtp;
     if (enteredOtp.length < OTP_LENGTH) {
       Toaster.toastError('Please enter a 6 digit OTP');
       return;
@@ -72,7 +74,7 @@ export default function VerifyOtpScreen({ navigation, route }: any) {
   React.useEffect(() => {
     if (data) {
       console.log('OTP verified successfully:', data);
-      navigation.navigate('ResetPassword', { email });
+      navigation.navigate('ResetPassword', { email, OTP });
     }
     if (error) {
       console.log('OTP verification failed:', error);

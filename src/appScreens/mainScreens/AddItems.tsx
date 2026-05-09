@@ -7,6 +7,7 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import {
   TextInput,
   Button,
@@ -15,9 +16,10 @@ import {
   Checkbox,
   IconButton,
   Surface,
-  Appbar,
 } from 'react-native-paper';
 import { COLORS } from '../../constants/Theme';
+import { useCreateProductMutation } from '../../reduxStore/slices/apiSlice';
+import { Toaster } from '../../components/toast';
 
 const { width } = Dimensions.get('window');
 
@@ -33,9 +35,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  header: {
-    backgroundColor: COLORS.muted,
   },
   scrollContent: {
     flex: 1,
@@ -149,6 +148,7 @@ const styles = StyleSheet.create({
 });
 
 export default function AddItems({ navigation }: any) {
+  const navigationHook = useNavigation();
   const [productName, setProductName] = useState('');
   const [productDescription, setProductDescription] = useState('');
   const [productLocation, setProductLocation] = useState('');
@@ -159,6 +159,23 @@ export default function AddItems({ navigation }: any) {
     { id: '3', type: 'weekly', label: 'Weekly', price: '', selected: false },
     { id: '4', type: 'monthly', label: 'Monthly', price: '', selected: false },
   ]);
+
+  const [createProduct, { data, isLoading, error }] =
+    useCreateProductMutation();
+
+  React.useEffect(() => {
+    if (data) {
+      console.log('Product created successfully:', data);
+      Toaster.toastSuccess('Product listed successfully!');
+      navigationHook.goBack();
+    }
+    if (error) {
+      console.log('Create product error:', error);
+      Toaster.toastError(
+        (error as any)?.data?.message || 'Failed to create product',
+      );
+    }
+  }, [data, error]);
 
   const handlePricingToggle = (id: string) => {
     setPricingOptions(prev =>
@@ -183,10 +200,9 @@ export default function AddItems({ navigation }: any) {
       Alert.alert('Maximum 3 images allowed');
       return;
     }
-    // Placeholder for image upload logic
     Alert.alert(
       'Image Upload',
-      'Image upload functionality would be implemented here',
+      'Image upload functionality is not implemented due to Camera Plugin issue.',
     );
   };
 
@@ -194,18 +210,17 @@ export default function AddItems({ navigation }: any) {
     setProductImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = () => {
-    // Basic validation
+  const handleSubmit = async () => {
     if (!productName.trim()) {
-      Alert.alert('Error', 'Please enter product name');
+      Toaster.toastError('Please enter product name');
       return;
     }
     if (!productDescription.trim()) {
-      Alert.alert('Error', 'Please enter product description');
+      Toaster.toastError('Please enter product description');
       return;
     }
     if (!productLocation.trim()) {
-      Alert.alert('Error', 'Please enter product location');
+      Toaster.toastError('Please enter product location');
       return;
     }
 
@@ -213,20 +228,35 @@ export default function AddItems({ navigation }: any) {
       opt => opt.selected && opt.price,
     );
     if (selectedPricing.length === 0) {
-      Alert.alert('Error', 'Please add at least one pricing option');
+      Toaster.toastError('Please add at least one pricing option');
       return;
     }
 
-    // Form submission logic would go here
-    Alert.alert('Success', 'Item listed successfully!');
+    const pricing: any = {};
+    selectedPricing.forEach(option => {
+      pricing[option.type] = parseInt(option.price);
+    });
+
+    const productData = {
+      name: productName,
+      description: productDescription,
+      location: productLocation,
+      images: productImages,
+      pricing: pricing,
+    };
+
+    console.log('Product data to send:', productData);
+
+    try {
+      await createProduct(productData);
+    } catch (error) {
+      Toaster.toastError('Failed to create product');
+      console.log('Error creating product:', error);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Appbar.Header style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Add Item" />
-      </Appbar.Header>
       <ScrollView
         style={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -247,6 +277,7 @@ export default function AddItems({ navigation }: any) {
                 outlineColor={COLORS.primary}
                 activeOutlineColor={COLORS.primary}
                 selectionColor={COLORS.primary}
+                disabled={isLoading}
               />
             </Card.Content>
           </Card>
@@ -268,6 +299,7 @@ export default function AddItems({ navigation }: any) {
                 outlineColor={COLORS.primary}
                 activeOutlineColor={COLORS.primary}
                 selectionColor={COLORS.primary}
+                disabled={isLoading}
               />
             </Card.Content>
           </Card>
@@ -287,6 +319,7 @@ export default function AddItems({ navigation }: any) {
                     <Checkbox
                       status={option.selected ? 'checked' : 'unchecked'}
                       onPress={() => handlePricingToggle(option.id)}
+                      disabled={isLoading}
                     />
                     <Text style={styles.pricingLabel}>{option.label}</Text>
                   </View>
@@ -301,6 +334,7 @@ export default function AddItems({ navigation }: any) {
                         placeholder="0"
                         keyboardType="numeric"
                         style={styles.priceInput}
+                        disabled={isLoading}
                       />
                       <Text style={styles.rupeeSymbol}>₹</Text>
                       {pricingOptions.length > 4 && (
@@ -318,7 +352,6 @@ export default function AddItems({ navigation }: any) {
             </Card.Content>
           </Card>
 
-          {/* Product Images */}
           <Card style={styles.card}>
             <Card.Content>
               <Text variant="titleMedium" style={styles.label}>
@@ -361,6 +394,7 @@ export default function AddItems({ navigation }: any) {
                 onChangeText={setProductLocation}
                 placeholder="Enter product location"
                 style={styles.input}
+                disabled={isLoading}
               />
             </Card.Content>
           </Card>
@@ -371,8 +405,10 @@ export default function AddItems({ navigation }: any) {
             onPress={handleSubmit}
             style={styles.submitButton}
             contentStyle={styles.submitButtonContent}
+            loading={isLoading}
+            disabled={isLoading}
           >
-            List Item
+            {isLoading ? 'Listing...' : 'List Item'}
           </Button>
         </View>
       </ScrollView>

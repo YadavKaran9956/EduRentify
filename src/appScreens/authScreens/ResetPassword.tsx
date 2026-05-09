@@ -13,34 +13,33 @@ import {
 } from 'react-native';
 import { COLORS } from '../../constants/Theme';
 import { Button, TextInput } from 'react-native-paper';
-import { storageService } from '../../services/storageService';
 import { Toaster } from '../../components/toast';
-import { isValidEmail } from '../../utils/validators';
-import { useDispatch } from 'react-redux';
-import { useLoginMutation } from '../../reduxStore/slices/apiSlice';
-import { setUserCredentials } from '../../reduxStore/slices/authSlice';
+import { useResetPasswordMutation } from '../../reduxStore/slices/apiSlice';
 
 interface FormErrors {
-  email?: string;
   password?: string;
+  confirmPassword?: string;
 }
 
-export default function LoginScreen({ navigation }: any) {
-  const [email, setEmail] = useState('');
+export default function ResetPasswordScreen({ navigation, route }: any) {
   const [password, setPassword] = useState('');
+  const [password_confirmation, setPasswordConfirmation] = useState('');
   const [secureText, setSecureText] = useState(true);
+  const [secureConfirmText, setSecureConfirmText] = useState(true);
   const [errors, setError] = useState<FormErrors>({});
-  const [login, { data, isLoading, error }] = useLoginMutation();
-  const dispatch = useDispatch();
+  const { email } = route.params;
+  const { otp } = route.params;
+  const [resetPassword, { data, isLoading, error }] =
+    useResetPasswordMutation();
 
   const validateForm = () => {
     let err: FormErrors = {};
 
-    if (!email) err.email = 'Email is required.';
     if (!password) err.password = 'Password is required.';
-    if (email && !isValidEmail(email)) {
-      err.email = 'Email is not valid';
-    }
+    if (!password_confirmation)
+      err.confirmPassword = 'Confirm password is required.';
+    if (password && password_confirmation && password !== password_confirmation)
+      err.confirmPassword = 'Passwords do not match.';
 
     setError(err);
 
@@ -49,7 +48,7 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleFormSubmit = async () => {
     if (validateForm()) {
-      await login({ email, password });
+      await resetPassword({ email, password, password_confirmation, otp: otp });
     } else {
       console.log(errors);
     }
@@ -57,34 +56,25 @@ export default function LoginScreen({ navigation }: any) {
 
   React.useEffect(() => {
     if (data) {
-      console.log('Login successful:', data);
-      setEmail('');
+      console.log('Password reset successful', data);
       setPassword('');
+      setPasswordConfirmation('');
       setError({});
-      const user = (data as any).data;
-      console.log('User:', user);
-      storageService.setCredentials(
-        JSON.stringify(user),
-        (data as any).data?.token,
-        'edurentify_user',
-      );
-      dispatch(
-        setUserCredentials({ user: data, token: (data as any).data?.token }),
-      );
       Toaster.toastSuccess((data as any)?.message);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
     }
-  }, [data]);
-
-  React.useEffect(() => {
     if (error) {
-      console.log('Login error:', error);
+      console.log('Password reset error:', error);
       Toaster.toastError(
         (error as any).data?.message
           ? (error as any).data?.message
           : 'Network disconnected!',
       );
     }
-  }, [error]);
+  }, [data, error]);
 
   return (
     <KeyboardAvoidingView
@@ -99,27 +89,15 @@ export default function LoginScreen({ navigation }: any) {
             resizeMode="contain"
           />
 
-          <Text style={styles.title}>Please log in into your account!</Text>
+          <Text style={styles.title}>Reset Password</Text>
+          <Text style={styles.subtitle}>
+            Your new password must be different from your previously used
+            password.
+          </Text>
 
           <TextInput
             style={styles.input}
-            label="Email"
-            mode="outlined"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            disabled={isLoading}
-          />
-          {errors.email ? (
-            <View style={styles.errContainer}>
-              <Text style={styles.errorMsg}>{errors.email}</Text>
-            </View>
-          ) : null}
-
-          <TextInput
-            style={styles.input}
-            label="Password"
+            label="New Password*"
             mode="outlined"
             value={password}
             onChangeText={setPassword}
@@ -138,14 +116,26 @@ export default function LoginScreen({ navigation }: any) {
             </View>
           ) : null}
 
-          <TouchableOpacity style={styles.forgetPassContainer}>
-            <Text
-              style={styles.forgotText}
-              onPress={() => navigation.navigate('ForgotPassword')}
-            >
-              Forgot Password?
-            </Text>
-          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            label="Confirm New Password*"
+            mode="outlined"
+            value={password_confirmation}
+            onChangeText={setPasswordConfirmation}
+            secureTextEntry={secureConfirmText}
+            right={
+              <TextInput.Icon
+                icon={secureConfirmText ? 'eye-off' : 'eye'}
+                onPress={() => setSecureConfirmText(!secureConfirmText)}
+              />
+            }
+            disabled={isLoading}
+          />
+          {errors.confirmPassword ? (
+            <View style={styles.errContainer}>
+              <Text style={styles.errorMsg}>{errors.confirmPassword}</Text>
+            </View>
+          ) : null}
 
           {isLoading ? (
             <TouchableOpacity
@@ -170,7 +160,7 @@ export default function LoginScreen({ navigation }: any) {
                   style={{ marginRight: 8 }}
                 />
                 <Text style={[styles.buttonText, { color: '#fff' }]}>
-                  Logging in...
+                  Updating password...
                 </Text>
               </View>
             </TouchableOpacity>
@@ -188,19 +178,14 @@ export default function LoginScreen({ navigation }: any) {
               }}
               labelStyle={styles.buttonText}
             >
-              Login
+              Update Password
             </Button>
           )}
 
-          <View style={styles.signupInfoContainer}>
-            <Text style={styles.memberText}>New member?</Text>
-            <TouchableOpacity
-              onPress={() => {
-                console.log('Navigating to Signup...');
-                navigation.navigate('Signup');
-              }}
-            >
-              <Text style={styles.signupInfoText}> Create new account</Text>
+          <View style={styles.loginInfoContainer}>
+            <Text style={styles.memberText}>Remembered your password?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.loginInfoText}> Login</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -225,10 +210,17 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 10,
     color: COLORS.text,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 20,
   },
   input: {
     width: '100%',
@@ -236,19 +228,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     paddingHorizontal: 15,
-    borderColor: COLORS.muted,
+    borderColor: COLORS.text,
     marginBottom: 10,
   },
-  forgetPassContainer: {
-    alignItems: 'flex-end',
+  errContainer: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 10,
   },
-  forgotText: {
-    textAlign: 'right',
-    marginTop: 15,
-    color: COLORS.primary,
-    fontSize: 18,
+  errorMsg: {
+    color: COLORS.danger,
   },
   button: {
     width: '100%',
@@ -262,14 +250,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginHorizontal: 0,
   },
-  errContainer: {
-    width: '100%',
-    marginBottom: 10,
-  },
-  errorMsg: {
-    color: COLORS.danger,
-  },
-  signupInfoContainer: {
+  loginInfoContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -279,7 +260,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
   },
-  signupInfoText: {
+  loginInfoText: {
     color: COLORS.primary,
     fontWeight: 'bold',
     fontSize: 16,

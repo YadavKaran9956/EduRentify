@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 export const apiSlice = createApi({
   reducerPath: 'edurentifyApi',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://192.168.29.164:8000/api',
+    baseUrl: 'http://192.168.0.190:8000/api',
     prepareHeaders: (headers: any, { getState }: any) => {
       const token = getState().auth.token;
       console.log('apiSlice token:', token);
@@ -13,6 +13,7 @@ export const apiSlice = createApi({
       return headers;
     },
   }),
+  tagTypes: ['Products'],
   endpoints: (builder: any) => ({
     register: builder.mutation({
       query: (data: any) => ({
@@ -48,6 +49,68 @@ export const apiSlice = createApi({
         body: data,
       }),
     }),
+    resetPassword: builder.mutation({
+      query: (data: any) => ({
+        url: '/resetPassword',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    updateProfile: builder.mutation({
+      query: (data: any) => ({
+        url: '/updateProfile',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    createProduct: builder.mutation({
+      query: (data: any) => ({
+        url: '/createProduct',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Products'],
+    }),
+    getProducts: builder.query({
+      query: () => ({
+        url: '/getProducts',
+        method: 'GET',
+      }),
+      providesTags: ['Products'],
+    }),
+    getProduct: builder.query({
+      query: (id: string) => ({
+        url: `/getProduct/${id}`,
+        method: 'GET',
+      }),
+      providesTags: ['Products'],
+    }),
+    getMyProducts: builder.query({
+      query: () => ({
+        url: '/getMyProducts',
+        method: 'GET',
+      }),
+      providesTags: ['Products'],
+    }),
+    getMyBookings: builder.query({
+      query: () => ({
+        url: '/getMyBookings',
+        method: 'GET',
+      }),
+    }),
+    bookProduct: builder.mutation({
+      query: (data: any) => ({
+        url: '/bookProduct',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+    deleteProduct: builder.mutation({
+      query: (id: string) => ({
+        url: `/deleteProduct/${id}`,
+        method: 'DELETE',
+      }),
+    }),
   }),
 });
 
@@ -57,4 +120,13 @@ export const {
   useLogoutMutation,
   useForgotPasswordMutation,
   useVerifyOtpMutation,
+  useResetPasswordMutation,
+  useUpdateProfileMutation,
+  useCreateProductMutation,
+  useGetProductsQuery,
+  useGetProductQuery,
+  useGetMyProductsQuery,
+  useGetMyBookingsQuery,
+  useBookProductMutation,
+  useDeleteProductMutation,
 } = apiSlice;

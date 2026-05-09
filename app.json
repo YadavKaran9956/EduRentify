@@ -1,4 +1,7 @@
 {
   "name": "EduRentify",
-  "displayName": "EduRentify"
+  "displayName": "EduRentify",
+  "expo": {
+    "plugins": ["react-native-bootsplash"]
+  }
 }

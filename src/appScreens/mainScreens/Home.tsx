@@ -18,50 +18,73 @@ import {
   IconButton,
 } from 'react-native-paper';
 import { COLORS } from '../../constants/Theme';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { storageService } from '../../services/storageService';
-import { logoutUser } from '../../reduxStore/slices/authSlice';
-import { useDispatch } from 'react-redux';
+import {
+  logoutUser,
+  resetAuth,
+  selectCurrentUser,
+} from '../../reduxStore/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
 import { AlertComp } from '../../components/alert';
-import { useLogoutMutation } from '../../reduxStore/slices/apiSlice';
+import {
+  useGetProductsQuery,
+  useLogoutMutation,
+  apiSlice,
+} from '../../reduxStore/slices/apiSlice';
+import { Toaster } from '../../components/toast';
 
 const { width } = Dimensions.get('window');
 
+interface Product {
+  id: string;
+  name: string;
+  pricePerTime: number;
+  priceType: string;
+  location: string;
+  imageUrl: any;
+  pricing?: {
+    hourly?: number;
+    daily?: number;
+    weekly?: number;
+    monthly?: number;
+  };
+}
+
 // Dummy data for rentable DIY tools
-const RENTABLE_ITEMS = [
-  {
-    id: '1',
-    name: 'Power Drill Set',
-    pricePerHour: 5,
-    location: '123 Maker St, Downtown',
-    imageUrl:
-      'https://images.unsplash.com/photo-1504148455328-c376907d081c?q=80&w=500&auto=format&fit=crop',
-  },
-  {
-    id: '2',
-    name: 'Circular Saw',
-    pricePerHour: 8,
-    location: '456 Build Ave, Uptown',
-    imageUrl:
-      'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?q=80&w=500&auto=format&fit=crop',
-  },
-  {
-    id: '3',
-    name: 'Complete Wrench Kit',
-    pricePerHour: 3,
-    location: '789 Fixit Blvd, Greenfield',
-    imageUrl:
-      'https://images.unsplash.com/photo-1530124566582-a618bc2615dc?q=80&w=500&auto=format&fit=crop',
-  },
-  {
-    id: '4',
-    name: 'Heavy Duty Ladder',
-    pricePerHour: 4,
-    location: '321 Heights Rd, Westside',
-    imageUrl:
-      'https://images.unsplash.com/photo-1581147036324-c17ac41dfa6c?q=80&w=1000&auto=format&fit=crop',
-  },
-];
+// const RENTABLE_ITEMS = [
+//   {
+//     id: '1',
+//     name: 'Power Drill Set',
+//     pricePerHour: 5,
+//     location: '123 Maker St, Downtown',
+//     imageUrl: require('../../assets/icon.png'),
+//   },
+//   {
+//     id: '2',
+//     name: 'Circular Saw',
+//     pricePerHour: 8,
+//     location: '456 Build Ave, Uptown',
+//     imageUrl:
+//       'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?q=80&w=500&auto=format&fit=crop',
+//   },
+//   {
+//     id: '3',
+//     name: 'Complete Wrench Kit',
+//     pricePerHour: 3,
+//     location: '789 Fixit Blvd, Greenfield',
+//     imageUrl:
+//       'https://images.unsplash.com/photo-1530124566582-a618bc2615dc?q=80&w=500&auto=format&fit=crop',
+//   },
+//   {
+//     id: '4',
+//     name: 'Heavy Duty Ladder',
+//     pricePerHour: 4,
+//     location: '321 Heights Rd, Westside',
+//     imageUrl:
+//       'https://images.unsplash.com/photo-1581147036324-c17ac41dfa6c?q=80&w=1000&auto=format&fit=crop',
+//   },
+// ];
 
 export default function Home({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,9 +92,107 @@ export default function Home({ navigation }: any) {
   const [filter, setFilter] = useState('Hourly');
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [fabAnimation] = useState(new Animated.Value(0));
+  const currentUser = useSelector(selectCurrentUser);
   const dispatch = useDispatch();
 
   const [logout] = useLogoutMutation();
+  const {
+    data: productsData,
+    isLoading,
+    error,
+    refetch,
+  } = useGetProductsQuery({});
+  const isFocused = useIsFocused();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+
+  React.useEffect(() => {
+    refetch(); // Force fresh data on mount
+  }, []);
+
+  React.useEffect(() => {
+    if (isFocused) {
+      refetch(); // Force fresh data when screen is focused
+      // Clear API cache to ensure fresh data
+      dispatch(apiSlice.util.invalidateTags(['Products']));
+    }
+  }, [isFocused]);
+
+  React.useEffect(() => {
+    if (productsData) {
+      console.log('Products from API:', productsData);
+      const transformedProducts = (productsData as any)?.data?.map(
+        (product: any) => {
+          let price = 0;
+          let priceType = 'hr';
+
+          // Determine the primary price for display (prioritize hourly)
+          if (product.pricing?.hourly) {
+            price = product.pricing.hourly;
+            priceType = 'hr';
+          } else if (product.pricing?.daily) {
+            price = product.pricing.daily;
+            priceType = 'day';
+          } else if (product.pricing?.weekly) {
+            price = product.pricing.weekly;
+            priceType = 'week';
+          } else if (product.pricing?.monthly) {
+            price = product.pricing.monthly;
+            priceType = 'month';
+          }
+
+          return {
+            id: product.id,
+            name: product.product_name,
+            pricePerTime: price,
+            priceType: priceType,
+            location: product.product_location,
+            imageUrl: product.product_images?.[0]
+              ? { uri: product.product_images[0] }
+              : require('../../assets/icon.png'),
+            pricing: product.pricing, // Preserve original pricing data
+          };
+        },
+      );
+
+      setProducts(transformedProducts);
+    }
+    if (error) {
+      console.log('Get products error:', error);
+    }
+  }, [productsData, error]);
+
+  // Filter products based on search query and time filter
+  React.useEffect(() => {
+    let filtered = [...products];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        product =>
+          product.name.toLowerCase().includes(query) ||
+          product.location.toLowerCase().includes(query),
+      );
+    }
+
+    // Apply time filter
+    if (filter !== 'Hourly') {
+      const filterMap: Record<string, string> = {
+        Daily: 'daily',
+        Weekly: 'weekly',
+        Monthly: 'monthly',
+      };
+      const targetPriceType = filterMap[filter];
+      if (targetPriceType) {
+        filtered = filtered.filter(
+          product => (product.pricing as any)?.[targetPriceType],
+        );
+      }
+    }
+
+    setFilteredProducts(filtered);
+  }, [searchQuery, filter, products]);
 
   const openMenu = () => setVisible(true);
   const closeMenu = () => setVisible(false);
@@ -96,13 +217,7 @@ export default function Home({ navigation }: any) {
   const handleMenuAction = (action: string) => {
     switch (action) {
       case 'profile':
-        navigation.navigate('Profile');
-        break;
-      case 'contact':
-        navigation.navigate('ContactUs');
-        break;
-      case 'faqs':
-        navigation.navigate('FAQs');
+        navigation.navigate('MyProfile');
         break;
       case 'about':
         navigation.navigate('AboutUs');
@@ -113,6 +228,10 @@ export default function Home({ navigation }: any) {
             await logout(null);
             storageService.deleteCredentials('edurentify_user');
             dispatch(logoutUser());
+            // Reset all Redux state
+            dispatch(resetAuth());
+            // Clear API cache
+            dispatch(apiSlice.util.resetApiState());
           },
         });
         break;
@@ -126,22 +245,40 @@ export default function Home({ navigation }: any) {
   };
 
   const handleAddItem = () => {
-    navigation.navigate('AddItems');
+    console.log('currentUser', currentUser);
+    if (
+      currentUser?.role == 'customer' ||
+      currentUser?.data?.role == 'customer'
+    ) {
+      Toaster.toastInfo(
+        'Permission denied. If you want to add items for rent, please update your profile.',
+      );
+      return;
+    } else {
+      navigation.navigate('AddItems');
+    }
   };
 
-  const renderItem = ({ item }: { item: (typeof RENTABLE_ITEMS)[0] }) => (
+  const renderItem = ({ item }: { item: any }) => (
     <Card
       style={styles.card}
-      onPress={() => navigation.navigate('ItemDetails', { item })}
+      onPress={() => navigation.navigate('ItemDetails', { productId: item.id })}
     >
-      <Card.Cover source={{ uri: item.imageUrl }} style={styles.cardImage} />
+      <Card.Cover
+        source={
+          typeof item.imageUrl === 'number'
+            ? item.imageUrl
+            : { uri: item.imageUrl }
+        }
+        style={styles.cardImage}
+      />
       <Card.Content style={styles.cardContent}>
         <View style={styles.headerRow}>
           <Text variant="titleMedium" style={styles.itemName} numberOfLines={1}>
             {item.name}
           </Text>
           <Text variant="titleMedium" style={styles.price}>
-            ${item.pricePerHour}/hr
+            ${item.pricePerTime}/{item.priceType}
           </Text>
         </View>
         <View style={styles.locationRow}>
@@ -202,7 +339,7 @@ export default function Home({ navigation }: any) {
         </View>
       </View>
       <FlatList
-        data={RENTABLE_ITEMS}
+        data={filteredProducts}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
@@ -211,9 +348,24 @@ export default function Home({ navigation }: any) {
             <Text variant="titleLarge" style={styles.sectionTitle}>
               EduRentify Featured Items
             </Text>
+            {isLoading && (
+              <Text style={styles.loadingText}>Loading products...</Text>
+            )}
+            {!isLoading &&
+              filteredProducts.length === 0 &&
+              products.length > 0 && (
+                <Text style={styles.emptyText}>
+                  No products match your search
+                </Text>
+              )}
+            {!isLoading && products.length === 0 && (
+              <Text style={styles.emptyText}>No products available</Text>
+            )}
           </View>
         }
         showsVerticalScrollIndicator={false}
+        refreshing={isLoading}
+        onRefresh={() => {}}
       />
       <View style={styles.bottomBar}>
         <Button
@@ -247,30 +399,6 @@ export default function Home({ navigation }: any) {
                 style={styles.menuIcon}
               />
               <Text style={styles.moreMenuText}>My Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.moreMenuItem}
-              onPress={() => handleMenuAction('contact')}
-            >
-              <IconButton
-                icon="phone"
-                iconColor="#fff"
-                size={20}
-                style={styles.menuIcon}
-              />
-              <Text style={styles.moreMenuText}>Contact Us</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.moreMenuItem}
-              onPress={() => handleMenuAction('faqs')}
-            >
-              <IconButton
-                icon="help-circle"
-                iconColor="#fff"
-                size={20}
-                style={styles.menuIcon}
-              />
-              <Text style={styles.moreMenuText}>FAQs</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.moreMenuItem}
@@ -407,7 +535,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    padding: 2,
+    padding: 8,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     flexDirection: 'row',
@@ -445,5 +573,18 @@ const styles = StyleSheet.create({
   menuIcon: {
     margin: 0,
     padding: 0,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+    marginTop: 16,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

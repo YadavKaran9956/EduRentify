@@ -27,7 +27,7 @@ export const Toaster = {
       text1: 'Info',
       text2: msg,
       position: 'bottom',
-      visibilityTime: 3000,
+      visibilityTime: 5000,
     });
   },
 };

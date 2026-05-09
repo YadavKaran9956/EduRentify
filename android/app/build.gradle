@@ -105,6 +105,16 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+
+    android {
+    // ... other settings
+    ndkVersion "26.1.10909125" // Match the exact version you downloaded
+    externalNativeBuild {
+        cmake {
+            version "3.22.1"
+        }
+    }
+}
 }
 
 dependencies {
